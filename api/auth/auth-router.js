@@ -3,7 +3,11 @@ const token = require('../auth/token-builder')
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
 const User = require('../users/users-model');
-const { checkPayload, checkUsernameFree } = require('../middleware/auth-middleware');
+const {
+  checkPayload,
+  checkUsernameFree,
+  checkUsernameExists
+} = require('../middleware/auth-middleware');
 
 router.post('/register', checkPayload, checkUsernameFree, (req, res, next) => {
   /*
@@ -34,6 +38,7 @@ router.post('/register', checkPayload, checkUsernameFree, (req, res, next) => {
 
   const { username, password } = req.body
   const hash = bcrypt.hashSync(password, 8)
+
   User.add({ username, password: hash })
       .then(newUser => {
         res.status(201).json(newUser)
@@ -41,8 +46,7 @@ router.post('/register', checkPayload, checkUsernameFree, (req, res, next) => {
       .catch(next)
 });
 
-router.post('/login', (req, res, next) => {
-  res.end('implement login, please!');
+router.post('/login', checkUsernameExists, (req, res, next) => {
   /*
     IMPLEMENT
     You are welcome to build additional middlewares to help with the endpoint's functionality.
@@ -69,9 +73,10 @@ router.post('/login', (req, res, next) => {
 
   const { password } = req.body
   if (bcrypt.compareSync(password, req.user.password)){
-    req.session.user = req.user
+    const token = buildToken(req.user)
     res.json({
-      message: `welcome, ${req.user.username}`
+      message: `welcome, ${req.user.username}`,
+      token
     })
   } else {
     next({
